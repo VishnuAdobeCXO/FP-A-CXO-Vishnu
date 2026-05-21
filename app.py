@@ -117,7 +117,7 @@ def build(df, grp_cols):
     return merged.sort_values("var_fc_oth", ascending=False)
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📋 Main View","🏢 Org Drill-down","📅 Quarterly","🗄️ Raw Data","📤 Upload Files"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📋 Main View","🏢 Org Drill-down","📊 GL View","🗄️ Raw Data","📤 Upload Files"])
 
 # ── TAB 1: Main View ──────────────────────────────────────────────────────────
 with tab1:
@@ -154,13 +154,15 @@ with tab1:
     disp["Fcst vs Other"]   = raw["var_fc_oth"].apply(fmt)
     disp["Var % (F/O)"]     = raw.apply(
         lambda r: fmt_pct(r["var_fc_oth"]/abs(r["other"])*100 if r["other"]!=0 else None), axis=1)
+    disp["F/U (F/O)"]       = raw["var_fc_oth"].apply(fu)
     disp["Act vs Fcst"]     = raw["var_act_fc"].apply(fmt)
     disp["Var % (A/F)"]     = raw.apply(
         lambda r: fmt_pct(r["var_act_fc"]/abs(r["forecast"])*100 if r["forecast"]!=0 else None), axis=1)
+    disp["F/U (A/F)"]       = raw["var_act_fc"].apply(fu)
     disp["Act vs Other"]    = raw["var_act_oth"].apply(fmt)
     disp["Var % (A/O)"]     = raw.apply(
         lambda r: fmt_pct(r["var_act_oth"]/abs(r["other"])*100 if r["other"]!=0 else None), axis=1)
-    disp["F/U"]             = raw["var_fc_oth"].apply(fu)
+    disp["F/U (A/O)"]       = raw["var_act_oth"].apply(fu)
 
     var_style_cols = ["Fcst vs Other", "Act vs Fcst", "Act vs Other"]
 
@@ -185,11 +187,13 @@ with tab1:
         oth_l:           fmt(oth_sum),
         "Fcst vs Other": fmt(vfo_sum),
         "Var % (F/O)":   fmt_pct(vfo_sum/abs(oth_sum)*100 if oth_sum!=0 else None),
+        "F/U (F/O)":     fu(vfo_sum),
         "Act vs Fcst":   fmt(vaf_sum),
         "Var % (A/F)":   fmt_pct(vaf_sum/abs(fc_sum)*100  if fc_sum!=0  else None),
+        "F/U (A/F)":     fu(vaf_sum),
         "Act vs Other":  fmt(vao_sum),
         "Var % (A/O)":   fmt_pct(vao_sum/abs(oth_sum)*100 if oth_sum!=0 else None),
-        "F/U":           fu(vfo_sum),
+        "F/U (A/O)":     fu(vao_sum),
     }])
     st.dataframe(
         tot_df.style.map(style_var, subset=["Fcst vs Other","Act vs Fcst","Act vs Other"]),
@@ -221,18 +225,25 @@ with tab2:
     od["Fcst vs Other"]     = oraw["var_fc_oth"].apply(fmt)
     od["Var % (F/O)"]       = oraw.apply(
         lambda r: fmt_pct(r["var_fc_oth"]/abs(r["other"])*100 if r["other"]!=0 else None), axis=1)
+    od["F/U (F/O)"]         = oraw["var_fc_oth"].apply(fu)
     od["Act vs Fcst"]       = oraw["var_act_fc"].apply(fmt)
     od["Var % (A/F)"]       = oraw.apply(
         lambda r: fmt_pct(r["var_act_fc"]/abs(r["forecast"])*100 if r["forecast"]!=0 else None), axis=1)
-    od["F/U"]               = oraw["var_fc_oth"].apply(fu)
+    od["F/U (A/F)"]         = oraw["var_act_fc"].apply(fu)
+    od["Act vs Other"]      = oraw["var_act_oth"].apply(fmt)
+    od["Var % (A/O)"]       = oraw.apply(
+        lambda r: fmt_pct(r["var_act_oth"]/abs(r["other"])*100 if r["other"]!=0 else None), axis=1)
+    od["F/U (A/O)"]         = oraw["var_act_oth"].apply(fu)
 
-    dim_cols = [c for c in ["L1","L2","L3"] if c in od.columns]
-    num_cols = ["Actuals","Forecast","Other Version","Fcst vs Other",
-                "Var % (F/O)","Act vs Fcst","Var % (A/F)","F/U"]
-    show2    = dim_cols + num_cols
+    dim_cols  = [c for c in ["L1","L2","L3"] if c in od.columns]
+    num_cols  = ["Actuals","Forecast","Other Version",
+                 "Fcst vs Other","Var % (F/O)","F/U (F/O)",
+                 "Act vs Fcst","Var % (A/F)","F/U (A/F)",
+                 "Act vs Other","Var % (A/O)","F/U (A/O)"]
+    show2     = dim_cols + num_cols
 
     st.dataframe(
-        od[show2].style.map(style_var, subset=["Fcst vs Other","Act vs Fcst"]),
+        od[show2].style.map(style_var, subset=["Fcst vs Other","Act vs Fcst","Act vs Other"]),
         use_container_width=True, hide_index=True, height=460
     )
 
@@ -242,6 +253,7 @@ with tab2:
     o_act = oraw["actuals"].sum()
     o_vfo = oraw["var_fc_oth"].sum()
     o_vaf = oraw["var_act_fc"].sum()
+    o_vao = oraw["var_act_oth"].sum()
     st.dataframe(pd.DataFrame([{
         "L1":"TOTAL","L2":"","L3":"",
         "Actuals":       fmt(o_act),
@@ -249,25 +261,89 @@ with tab2:
         "Other Version": fmt(o_oth),
         "Fcst vs Other": fmt(o_vfo),
         "Var % (F/O)":   fmt_pct(o_vfo/abs(o_oth)*100 if o_oth!=0 else None),
+        "F/U (F/O)":     fu(o_vfo),
         "Act vs Fcst":   fmt(o_vaf),
         "Var % (A/F)":   fmt_pct(o_vaf/abs(o_fc)*100  if o_fc!=0  else None),
-        "F/U":           fu(o_vfo),
-    }]).style.map(style_var, subset=["Fcst vs Other","Act vs Fcst"]),
+        "F/U (A/F)":     fu(o_vaf),
+        "Act vs Other":  fmt(o_vao),
+        "Var % (A/O)":   fmt_pct(o_vao/abs(o_oth)*100 if o_oth!=0 else None),
+        "F/U (A/O)":     fu(o_vao),
+    }]).style.map(style_var, subset=["Fcst vs Other","Act vs Fcst","Act vs Other"]),
     use_container_width=True, hide_index=True)
 
-# ── TAB 3: Quarterly ──────────────────────────────────────────────────────────
+# ── TAB 3: GL View ────────────────────────────────────────────────────────────
 with tab3:
-    st.markdown("### Forecast by Quarter")
-    qg_opts = [c for c in ["pl_cat","cch_l3","major_ce","gl_code"] if c in df.columns]
-    qg      = st.multiselect("Group by", qg_opts, default=["pl_cat","cch_l3","major_ce"])
-    if qg:
-        pivot = df[df["version"]==fc_ver].groupby(qg+["fiscal_qtr"])["amount"].sum().unstack("fiscal_qtr").fillna(0)
-        pivot.columns.name = None
-        for col in pivot.columns:
-            pivot[col] = pivot[col].apply(fmt)
-        pivot = pivot.reset_index().rename(columns={"pl_cat":"P&L","cch_l3":"CCH L3",
-                                                     "major_ce":"Major CE","gl_code":"GL Code"})
-        st.dataframe(pivot, use_container_width=True, hide_index=True, height=460)
+    st.markdown("### GL View")
+    st.caption("Grouped by P&L · CCH L2 · CCH L3 · Major CE · GL Description — one row per unique combination")
+
+    srch3 = st.text_input("🔍 Search", placeholder="e.g. Cloud, Salaries...", key="s3")
+
+    # Group by all GL-level dimensions → guaranteed no duplicate rows
+    gl_grp = [c for c in ["pl_cat","cch_l2","cch_l3","major_ce","gl_desc"] if c in df.columns]
+    gl_raw = build(df, gl_grp)
+
+    if srch3:
+        mask3 = pd.Series(False, index=gl_raw.index)
+        for col in gl_grp:
+            if col in gl_raw.columns:
+                mask3 |= gl_raw[col].astype(str).str.contains(srch3, case=False, na=False)
+        gl_raw = gl_raw[mask3]
+
+    gl_disp = pd.DataFrame()
+    gl_disp["P&L"]           = gl_raw["pl_cat"]
+    gl_disp["CCH L2"]        = gl_raw.get("cch_l2", "")
+    gl_disp["CCH L3"]        = gl_raw.get("cch_l3", "")
+    gl_disp["Major CE"]      = gl_raw.get("major_ce", "")
+    gl_disp["GL Description"]= gl_raw.get("gl_desc", "")
+    gl_disp["Actuals"]       = gl_raw["actuals"].apply(fmt)
+    gl_disp["Forecast"]      = gl_raw["forecast"].apply(fmt)
+    gl_disp["Other Version"] = gl_raw["other"].apply(fmt)
+    gl_disp["Fcst vs Other"] = gl_raw["var_fc_oth"].apply(fmt)
+    gl_disp["Var % (F/O)"]   = gl_raw.apply(
+        lambda r: fmt_pct(r["var_fc_oth"]/abs(r["other"])*100 if r["other"]!=0 else None), axis=1)
+    gl_disp["F/U (F/O)"]     = gl_raw["var_fc_oth"].apply(fu)
+    gl_disp["Act vs Fcst"]   = gl_raw["var_act_fc"].apply(fmt)
+    gl_disp["Var % (A/F)"]   = gl_raw.apply(
+        lambda r: fmt_pct(r["var_act_fc"]/abs(r["forecast"])*100 if r["forecast"]!=0 else None), axis=1)
+    gl_disp["F/U (A/F)"]     = gl_raw["var_act_fc"].apply(fu)
+    gl_disp["Act vs Other"]  = gl_raw["var_act_oth"].apply(fmt)
+    gl_disp["Var % (A/O)"]   = gl_raw.apply(
+        lambda r: fmt_pct(r["var_act_oth"]/abs(r["other"])*100 if r["other"]!=0 else None), axis=1)
+    gl_disp["F/U (A/O)"]     = gl_raw["var_act_oth"].apply(fu)
+
+    gl_var_cols = ["Fcst vs Other","Act vs Fcst","Act vs Other"]
+    st.dataframe(
+        gl_disp.style.map(style_var, subset=gl_var_cols),
+        use_container_width=True, hide_index=True, height=500
+    )
+
+    # Totals row
+    g_fc  = gl_raw["forecast"].sum()
+    g_oth = gl_raw["other"].sum()
+    g_act = gl_raw["actuals"].sum()
+    g_vfo = gl_raw["var_fc_oth"].sum()
+    g_vaf = gl_raw["var_act_fc"].sum()
+    g_vao = gl_raw["var_act_oth"].sum()
+    gl_tot = pd.DataFrame([{
+        "P&L":"TOTAL","CCH L2":"","CCH L3":"","Major CE":"","GL Description":"",
+        "Actuals":       fmt(g_act),
+        "Forecast":      fmt(g_fc),
+        "Other Version": fmt(g_oth),
+        "Fcst vs Other": fmt(g_vfo),
+        "Var % (F/O)":   fmt_pct(g_vfo/abs(g_oth)*100 if g_oth!=0 else None),
+        "F/U (F/O)":     fu(g_vfo),
+        "Act vs Fcst":   fmt(g_vaf),
+        "Var % (A/F)":   fmt_pct(g_vaf/abs(g_fc)*100  if g_fc!=0  else None),
+        "F/U (A/F)":     fu(g_vaf),
+        "Act vs Other":  fmt(g_vao),
+        "Var % (A/O)":   fmt_pct(g_vao/abs(g_oth)*100 if g_oth!=0 else None),
+        "F/U (A/O)":     fu(g_vao),
+    }])
+    st.dataframe(
+        gl_tot.style.map(style_var, subset=gl_var_cols),
+        use_container_width=True, hide_index=True
+    )
+    st.download_button("⬇️ Download GL View", gl_raw.to_csv(index=False).encode(), "gl_view.csv","text/csv")
 
 # ── TAB 4: Raw Data ───────────────────────────────────────────────────────────
 with tab4:
