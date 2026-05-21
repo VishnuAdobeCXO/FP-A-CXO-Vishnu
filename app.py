@@ -109,10 +109,11 @@ def build(df, grp_cols):
     else:
         merged["actuals"] = 0.0
     merged = merged.reset_index()
-    merged["var_fc_oth"] = merged["forecast"] - merged["other"]
-    merged["var_act_fc"] = merged["actuals"]  - merged["forecast"]
-    merged["pct"]        = merged.apply(lambda r: r["var_fc_oth"]/abs(r["other"])*100 if r["other"]!=0 else None, axis=1)
-    merged["fu"]         = merged["var_fc_oth"].apply(fu)
+    merged["var_fc_oth"]  = merged["forecast"] - merged["other"]
+    merged["var_act_fc"]  = merged["actuals"]  - merged["forecast"]
+    merged["var_act_oth"] = merged["actuals"]  - merged["other"]
+    merged["pct"]         = merged.apply(lambda r: r["var_fc_oth"]/abs(r["other"])*100 if r["other"]!=0 else None, axis=1)
+    merged["fu"]          = merged["var_fc_oth"].apply(fu)
     return merged.sort_values("var_fc_oth", ascending=False)
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -140,9 +141,10 @@ with tab1:
     fc_l  = "Forecast"
     oth_l = "Other Version"
 
-    # Build display DataFrame in the exact column order requested:
+    # Build display DataFrame:
     # P&L | Major CE | Actuals | Forecast | Other Version |
-    # Fcst vs Other | Var% (F/O) | Act vs Fcst | Var% (A/F) | F/U
+    # Fcst vs Other | Var% (F/O) | Act vs Fcst | Var% (A/F) |
+    # Act vs Other | Var% (A/O) | F/U
     disp = pd.DataFrame()
     disp["P&L"]             = raw["pl_cat"]
     disp["Major CE"]        = raw["major_ce"]
@@ -155,9 +157,12 @@ with tab1:
     disp["Act vs Fcst"]     = raw["var_act_fc"].apply(fmt)
     disp["Var % (A/F)"]     = raw.apply(
         lambda r: fmt_pct(r["var_act_fc"]/abs(r["forecast"])*100 if r["forecast"]!=0 else None), axis=1)
+    disp["Act vs Other"]    = raw["var_act_oth"].apply(fmt)
+    disp["Var % (A/O)"]     = raw.apply(
+        lambda r: fmt_pct(r["var_act_oth"]/abs(r["other"])*100 if r["other"]!=0 else None), axis=1)
     disp["F/U"]             = raw["var_fc_oth"].apply(fu)
 
-    var_style_cols = ["Fcst vs Other", "Act vs Fcst"]
+    var_style_cols = ["Fcst vs Other", "Act vs Fcst", "Act vs Other"]
 
     st.dataframe(
         disp.style.map(style_var, subset=var_style_cols),
@@ -170,21 +175,24 @@ with tab1:
     act_sum = raw["actuals"].sum()
     vfo_sum = raw["var_fc_oth"].sum()
     vaf_sum = raw["var_act_fc"].sum()
+    vao_sum = raw["var_act_oth"].sum()
 
     tot_df = pd.DataFrame([{
-        "P&L":          "TOTAL",
-        "Major CE":     "",
-        act_l:          fmt(act_sum),
-        fc_l:           fmt(fc_sum),
-        oth_l:          fmt(oth_sum),
-        "Fcst vs Other":fmt(vfo_sum),
-        "Var % (F/O)":  fmt_pct(vfo_sum/abs(oth_sum)*100 if oth_sum!=0 else None),
-        "Act vs Fcst":  fmt(vaf_sum),
-        "Var % (A/F)":  fmt_pct(vaf_sum/abs(fc_sum)*100  if fc_sum!=0  else None),
-        "F/U":          fu(vfo_sum),
+        "P&L":           "TOTAL",
+        "Major CE":      "",
+        act_l:           fmt(act_sum),
+        fc_l:            fmt(fc_sum),
+        oth_l:           fmt(oth_sum),
+        "Fcst vs Other": fmt(vfo_sum),
+        "Var % (F/O)":   fmt_pct(vfo_sum/abs(oth_sum)*100 if oth_sum!=0 else None),
+        "Act vs Fcst":   fmt(vaf_sum),
+        "Var % (A/F)":   fmt_pct(vaf_sum/abs(fc_sum)*100  if fc_sum!=0  else None),
+        "Act vs Other":  fmt(vao_sum),
+        "Var % (A/O)":   fmt_pct(vao_sum/abs(oth_sum)*100 if oth_sum!=0 else None),
+        "F/U":           fu(vfo_sum),
     }])
     st.dataframe(
-        tot_df.style.map(style_var, subset=["Fcst vs Other","Act vs Fcst"]),
+        tot_df.style.map(style_var, subset=["Fcst vs Other","Act vs Fcst","Act vs Other"]),
         use_container_width=True, hide_index=True
     )
     st.download_button("⬇️ Download CSV", raw.to_csv(index=False).encode(), "variance.csv","text/csv")
