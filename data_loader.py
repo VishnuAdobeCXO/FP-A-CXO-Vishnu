@@ -11,12 +11,15 @@ import pandas as pd
 import streamlit as st
 
 # ── Config ────────────────────────────────────────────────────────────────────
-# Prefer a ./data/ folder sitting next to this file (works on Streamlit Cloud).
-# Falls back to the local OneDrive path when ./data/ doesn't exist.
+# Priority: 1) ./data/ subfolder  2) repo root (same folder as this file)  3) OneDrive fallback
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 _bundled    = os.path.join(_script_dir, "data")
-DATA_FOLDER = _bundled if os.path.isdir(_bundled) else \
-              r"C:\Users\vkovoor\OneDrive - Adobe\COE FP&A\1. Outlook and QRF Workbooks\Vishnu"
+if os.path.isdir(_bundled) and glob.glob(os.path.join(_bundled, "*.xlsx")):
+    DATA_FOLDER = _bundled                        # ./data/ folder exists and has files
+elif glob.glob(os.path.join(_script_dir, "*.xlsx")):
+    DATA_FOLDER = _script_dir                     # xlsx files sitting in repo root
+else:
+    DATA_FOLDER = r"C:\Users\vkovoor\OneDrive - Adobe\COE FP&A\1. Outlook and QRF Workbooks\Vishnu"
 BLOB_CONTAINER     = "variance-data"          # Azure Blob container name
 AZURE_CONN_STR     = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "")
 IS_AZURE           = bool(AZURE_CONN_STR)
