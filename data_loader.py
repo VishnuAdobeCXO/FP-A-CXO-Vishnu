@@ -26,7 +26,7 @@ IS_AZURE           = bool(AZURE_CONN_STR)
 
 COLS = ["pl_cat","cch_l1","cch_l2","cch_l3","major_ce","ce_grp",
         "gl_code","gl_desc","version","fiscal_qtr","fiscal_year",
-        "amount","cost_center","source"]
+        "amount","cost_center","field_controller","source"]
 
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
@@ -73,22 +73,24 @@ def _load_row_file(src):
     yr  = _find(df, ["Fiscal Year"])
     amt = _find(df, ["Value USD @ Plan Rates","Amount"])
     cc  = _find(df, ["Cost Center"])
+    fct = _find(df, ["Field Controller"])
     name = src if isinstance(src, str) else getattr(src, "name", "upload")
     return pd.DataFrame({
-        "pl_cat":     df[pl].apply(_norm_pl)                              if pl  else [None]*n,
-        "cch_l1":     df[l1].values                                       if l1  else [None]*n,
-        "cch_l2":     df[l2].values                                       if l2  else [None]*n,
-        "cch_l3":     df[l3].values                                       if l3  else [None]*n,
-        "major_ce":   df[mce].values                                      if mce else [None]*n,
-        "ce_grp":     df[ceg].values                                      if ceg else [None]*n,
-        "gl_code":    df[gl].fillna(0).astype(float).astype(int).astype(str) if gl else [""]*n,
-        "gl_desc":    df[gld].values                                      if gld else [""]*n,
-        "version":    df[ver].values                                      if ver else ["Unknown"]*n,
-        "fiscal_qtr": df[qtr].values                                      if qtr else [None]*n,
-        "fiscal_year":df[yr].values                                       if yr  else [None]*n,
-        "amount":     pd.to_numeric(df[amt], errors="coerce").fillna(0).values if amt else [0.0]*n,
-        "cost_center":df[cc].values                                       if cc  else [None]*n,
-        "source":     [os.path.basename(str(name))]*n,
+        "pl_cat":           df[pl].apply(_norm_pl)                              if pl  else [None]*n,
+        "cch_l1":           df[l1].values                                       if l1  else [None]*n,
+        "cch_l2":           df[l2].values                                       if l2  else [None]*n,
+        "cch_l3":           df[l3].values                                       if l3  else [None]*n,
+        "major_ce":         df[mce].values                                      if mce else [None]*n,
+        "ce_grp":           df[ceg].values                                      if ceg else [None]*n,
+        "gl_code":          df[gl].fillna(0).astype(float).astype(int).astype(str) if gl else [""]*n,
+        "gl_desc":          df[gld].values                                      if gld else [""]*n,
+        "version":          df[ver].values                                      if ver else ["Unknown"]*n,
+        "fiscal_qtr":       df[qtr].values                                      if qtr else [None]*n,
+        "fiscal_year":      df[yr].values                                       if yr  else [None]*n,
+        "amount":           pd.to_numeric(df[amt], errors="coerce").fillna(0).values if amt else [0.0]*n,
+        "cost_center":      df[cc].values                                       if cc  else [None]*n,
+        "field_controller": df[fct].values                                      if fct else [None]*n,
+        "source":           [os.path.basename(str(name))]*n,
     })
 
 def _load_wide_file(src):
@@ -103,6 +105,7 @@ def _load_wide_file(src):
     gl  = _find(df, ["GL Account"])
     ver = _find(df, ["Version"])
     cc  = _find(df, ["Cost Center"])
+    fct = _find(df, ["Field Controller"])
     name = src if isinstance(src, str) else getattr(src, "name", "upload")
 
     qtr_cols = [c for c in df.columns
@@ -130,9 +133,10 @@ def _load_wide_file(src):
             "version":    df[ver].values                 if ver else ["Forecast"]*n,
             "fiscal_qtr": [qtr_std]*n,
             "fiscal_year":[yr_val]*n,
-            "amount":     pd.to_numeric(df[col], errors="coerce").fillna(0).values,
-            "cost_center":df[cc].values                  if cc  else [None]*n,
-            "source":     [os.path.basename(str(name))]*n,
+            "amount":           pd.to_numeric(df[col], errors="coerce").fillna(0).values,
+            "cost_center":      df[cc].values  if cc  else [None]*n,
+            "field_controller": df[fct].values if fct else [None]*n,
+            "source":           [os.path.basename(str(name))]*n,
         }))
     return pd.concat(chunks, ignore_index=True)
 
