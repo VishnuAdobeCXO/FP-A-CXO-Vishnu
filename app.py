@@ -62,24 +62,31 @@ with st.sidebar:
     sel_qtrs = st.multiselect("Quarter(s)", all_qtrs, default=all_qtrs)
     st.divider()
 
-    l1_opts = ["All"]+sorted(df_all["cch_l1"].dropna().unique().tolist())
-    sel_l1  = st.selectbox("CCH L1", l1_opts)
-    src2    = df_all[df_all["cch_l1"]==sel_l1] if sel_l1!="All" else df_all
-    l2_opts = ["All"]+sorted(src2["cch_l2"].dropna().unique().tolist())
-    sel_l2  = st.selectbox("CCH L2", l2_opts)
-    src3    = src2[src2["cch_l2"]==sel_l2] if sel_l2!="All" else src2
-    l3_opts = ["All"]+sorted(src3["cch_l3"].dropna().unique().tolist())
-    sel_l3  = st.selectbox("CCH L3 (Team)", l3_opts)
+    pl_opts  = sorted(df_all["pl_cat"].dropna().unique().tolist())
+    pl_sel   = st.multiselect("P&L Category", pl_opts, default=[])
+
     st.divider()
-    pl_sel  = st.selectbox("P&L Category", ["All","COGS","FIXED","VARIABLE"])
+    l1_opts  = sorted(df_all["cch_l1"].dropna().unique().tolist())
+    sel_l1   = st.multiselect("CCH L1", l1_opts, default=[])
+    src2     = df_all[df_all["cch_l1"].isin(sel_l1)] if sel_l1 else df_all
+    l2_opts  = sorted(src2["cch_l2"].dropna().unique().tolist())
+    sel_l2   = st.multiselect("CCH L2", l2_opts, default=[])
+    src3     = src2[src2["cch_l2"].isin(sel_l2)] if sel_l2 else src2
+    l3_opts  = sorted(src3["cch_l3"].dropna().unique().tolist())
+    sel_l3   = st.multiselect("CCH L3 (Team)", l3_opts, default=[])
+
+    st.divider()
+    fc_opts  = sorted(df_all["field_controller"].dropna().unique().tolist())
+    sel_fc   = st.multiselect("Field Controller", fc_opts, default=[])
 
 # ── Filter ────────────────────────────────────────────────────────────────────
 df = df_all.copy()
-if sel_qtrs:          df = df[df["fiscal_qtr"].isin(sel_qtrs)]
-if pl_sel!="All":     df = df[df["pl_cat"]==pl_sel]
-if sel_l1!="All":     df = df[df["cch_l1"]==sel_l1]
-if sel_l2!="All":     df = df[df["cch_l2"]==sel_l2]
-if sel_l3!="All":     df = df[df["cch_l3"]==sel_l3]
+if sel_qtrs:  df = df[df["fiscal_qtr"].isin(sel_qtrs)]
+if pl_sel:    df = df[df["pl_cat"].isin(pl_sel)]
+if sel_l1:    df = df[df["cch_l1"].isin(sel_l1)]
+if sel_l2:    df = df[df["cch_l2"].isin(sel_l2)]
+if sel_l3:    df = df[df["cch_l3"].isin(sel_l3)]
+if sel_fc:    df = df[df["field_controller"].isin(sel_fc)]
 
 fc_tot  = df[df["version"]==fc_ver]["amount"].sum()
 oth_tot = df[df["version"]==oth_ver]["amount"].sum()
